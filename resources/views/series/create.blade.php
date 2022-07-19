@@ -1,4 +1,21 @@
-<x-layout title="Nova Série">
+@extends('layouts.template')
+
+{{-- @section('title', 'Adicionar Série') --}}
+@section('title', $title)
+
+@section('content')
+    <div class="row text-center mt-3">
+        {{-- <h1> {{ $title }}</h1> --}}
+        <h1>Adicionar Série</h1>
+        <hr />
+    </div>
+
+    @component('_components.form-series-create')    
+    @endcomponent
+  
+@endsection
+
+{{-- <x-layout title="Nova Série">
 
     <form action="{{ route('series.store') }}" method="POST">
         @csrf
@@ -20,5 +37,4 @@
         <button type="submit" class="btn btn-primary">Adicionar</button>
     </form>
 
-
-</x-layout>
+</x-layout> --}}

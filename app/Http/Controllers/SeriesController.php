@@ -2,60 +2,91 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Middleware\Autenticador;
-use App\Http\Repositories\SeriesRepository;
+// use App\Http\Middleware\Autenticador;
+
+use App\Events\SeriesCreated;
 use App\Http\Requests\SeriesFormRequest;
-use App\Models\Series;
+use App\Repositories\Contracts\SeriesRepositoryInterface;
 use Illuminate\Http\Request;
 
 class SeriesController extends Controller
-{
-    public function __construct(private SeriesRepository $repository)
+{    
+    protected $serie;
+
+    public function __construct(SeriesRepositoryInterface $serie)
     {
-        $this->middleware(Autenticador::class)->except('index');
+        $this->serie = $serie;
     }
 
-    public function index(Request $request)
-    {
-        $series = Series::all();
+    // public function teste()
+    // {
+    //     $series = $this->serie->all();
 
+    //     return view('series.index', [
+    //         'title' => 'Home',
+    //         'series' => $series
+    //     ]);
+    // }
+
+    public function index(SeriesRepositoryInterface $serie)
+    {           
+        $series = $serie->all();        
         $mensagemSucesso = session('messagem.sucesso');
 
-        return view('series.index')->with('series', $series)->with('mensagemSucesso', $mensagemSucesso);
+        return view('series.index', [
+            'title' => 'Home',
+            'series' => $series,
+            'mensagemSucesso' => $mensagemSucesso
+        ]);
     }
 
     public function create()
     {
-        return view('series.create');
+        return view('series.create', [
+            'title' => 'Adicionar',
+        ]);
     }
 
-    public function store(SeriesFormRequest $request)
+    public function store(SeriesRepositoryInterface $serie, Request $request)
     {
-        $serie = $this->repository->add($request);
+        $coverPath = null;
 
-        return to_route('series.index')->with('mensagem.sucesso', "A série '{$serie->nome}' adicionada com sucesso!");
+        if ($request->hasFile('cover')) {
+            $coverPath = $request->file('cover')->store('series_cover', 'public');            
+        }        
+
+        $request->coverPath = $coverPath;
+
+        $serie = $serie->add($request);
+
+        SeriesCreated::dispatch($serie->id, $serie->nome, $request->seasonsQty, $request->episodesPerSeason);
+
+        return to_route('series.index')
+            ->with('mensagem.sucesso', "A série '{$serie->nome}' adicionada com sucesso!");        
     }
 
-    public function destroy(Series $series, Request $request)
+    public function destroy(SeriesRepositoryInterface $serie, Request $request)
     {
-        $series->delete();
-
-        // return redirect()->route('series.index');
-        return to_route('series.index')->with('message.sucesso', "A série '{$series->nome}' removida com sucesso!");
+        $nomeSerie = $request->nome;
+        $serie->delete();
+        
+        return to_route('series.index')
+            ->with('message.sucesso', "A série '{$nomeSerie}' removida com sucesso!");        
     }
 
-    public function edit(Series $series)
+    public function edit(SeriesRepositoryInterface $serie)
     {
-
-        return view('series.edit')->with('serie', $series);
+        return view('series.edit')
+            ->with('serie', $serie)
+            ->with('title', 'Editar Série');
     }
 
-    public function update(Series $series, SeriesFormRequest $request)
+    public function update(SeriesRepositoryInterface $serie, Request $request)
     {
-        // $series->nome = $request->nome;
-        $series->fill($request->all());
-        $series->save();
-
-        return to_route('series.index')->with('mensagem.sucesso', "A série '{$series->nome}' foi atualizada com sucesso!");
+        $nomeSerie = $request->nome;
+        $serie->update($request->all());
+        
+        return to_route('series.index')
+            ->with('mensagem.sucesso', "A série '{$nomeSerie}' foi atualizada com sucesso!");
     }
 }
